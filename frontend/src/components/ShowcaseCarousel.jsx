@@ -1,12 +1,24 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { showcaseItems } from '../data/mockData';
+import { showcaseItems as mockShowcase } from '../data/mockData';
+import { fetchShowcase, fetchStats } from '../services/api';
 
 const ShowcaseCarousel = () => {
   const scrollRef = useRef(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [items, setItems] = useState(mockShowcase);
+  const [stats, setStats] = useState({ users: '3M+', usersLabel: 'users worldwide building & launching real applications in minutes.' });
+
+  useEffect(() => {
+    fetchShowcase().then(data => {
+      if (data && data.length > 0) setItems(data);
+    });
+    fetchStats().then(data => {
+      if (data) setStats(data);
+    });
+  }, []);
 
   // Double the items for infinite scroll effect
-  const doubledItems = [...showcaseItems, ...showcaseItems];
+  const doubledItems = [...items, ...items];
 
   useEffect(() => {
     const scrollContainer = scrollRef.current;
@@ -36,10 +48,9 @@ const ShowcaseCarousel = () => {
     <section className="py-16 overflow-hidden relative">
       <div className="text-center mb-8">
         <p className="text-gray-500 text-lg">
-          <span className="font-bold text-gray-900 text-2xl">3M+</span>{' '}
-          <span className="text-gray-500">users worldwide building & launching</span>
+          <span className="font-bold text-gray-900 text-2xl">{stats.users}</span>{' '}
+          <span className="text-gray-500">{stats.usersLabel}</span>
         </p>
-        <p className="text-gray-500 text-lg">real applications in minutes.</p>
       </div>
 
       <div

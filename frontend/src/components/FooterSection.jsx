@@ -1,7 +1,36 @@
-import React from 'react';
-import { Twitter, Linkedin, Github, ArrowRight, Zap, Shield, Globe } from 'lucide-react';
+import React, { useState } from 'react';
+import { Twitter, Linkedin, Github, ArrowRight, Zap, Shield, Globe, X, CheckCircle, Loader2 } from 'lucide-react';
+import { joinWaitlist } from '../services/api';
 
 const FooterSection = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    setError('');
+    try {
+      await joinWaitlist(email, name || undefined);
+      setSuccess(true);
+      setEmail('');
+      setName('');
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setError('This email is already on the waitlist!');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       {/* CTA Section */}
@@ -11,14 +40,79 @@ const FooterSection = () => {
             Start building today
           </h2>
           <p className="text-gray-500 text-lg mb-10 max-w-xl mx-auto">
-            Join millions of developers and teams building the future with Emergent.
+            Join millions of developers and teams building the future with maligeeAi.
           </p>
-          <button className="inline-flex items-center gap-2 px-8 py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-full font-medium text-lg transition-colors duration-200 group">
+          <button
+            onClick={() => { setShowModal(true); setSuccess(false); setError(''); }}
+            className="inline-flex items-center gap-2 px-8 py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-full font-medium text-lg transition-colors duration-200 group"
+          >
             Get Started Free
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
           </button>
         </div>
       </section>
+
+      {/* Waitlist Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-fade-in-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {success ? (
+              <div className="text-center py-4">
+                <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">You're on the list!</h3>
+                <p className="text-gray-500">We'll notify you when it's your turn to start building.</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Join the Waitlist</h3>
+                <p className="text-gray-500 mb-6">Get early access to maligeeAi and start building amazing apps.</p>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name (optional)</label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your name"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  {error && <p className="text-red-500 text-sm">{error}</p>}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white rounded-full font-medium transition-colors duration-200"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Join Waitlist'}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Trust Badges */}
       <section className="py-16 px-6 border-t border-gray-100">
@@ -64,10 +158,10 @@ const FooterSection = () => {
                 className="text-xl font-medium tracking-tight"
                 style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}
               >
-                emergent
+                maligeeAi
               </span>
               <span className="text-sm text-gray-400">
-                © 2025 Emergent. All rights reserved.
+                © 2025 maligeeAi. All rights reserved.
               </span>
             </div>
             <div className="flex items-center gap-6">

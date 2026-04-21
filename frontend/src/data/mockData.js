@@ -1,4 +1,4 @@
-// Mock data for Emergent clone
+// Mock data for maligeeAi clone
 
 export const showcaseItems = [
   {
@@ -64,7 +64,7 @@ export const testimonials = [
     id: 1,
     name: "Sarah Chen",
     role: "Founder, TechStart",
-    quote: "Emergent helped us launch our MVP in days instead of months.",
+    quote: "maligeeAi helped us launch our MVP in days instead of months.",
     avatar: "SC"
   },
   {
@@ -78,7 +78,7 @@ export const testimonials = [
     id: 3,
     name: "Mike Johnson",
     role: "Developer",
-    quote: "I've built 5 production apps with Emergent. It's incredible.",
+    quote: "I've built 5 production apps with maligeeAi. It's incredible.",
     avatar: "MJ"
   }
 ];

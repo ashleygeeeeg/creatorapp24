@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MonitorSmartphone, Bot, Link2 } from 'lucide-react';
-import { features } from '../data/mockData';
+import { features as mockFeatures } from '../data/mockData';
+import { fetchFeatures } from '../services/api';
 
 const iconMap = {
   'monitor-smartphone': MonitorSmartphone,
@@ -26,6 +27,13 @@ const mockupImages = {
 
 const FeaturesSection = () => {
   const [activeFeature, setActiveFeature] = useState(0);
+  const [features, setFeatures] = useState(mockFeatures);
+
+  useEffect(() => {
+    fetchFeatures().then(data => {
+      if (data && data.length > 0) setFeatures(data);
+    });
+  }, []);
 
   const currentMockup = mockupImages[features[activeFeature].mockupType];
 
@@ -35,10 +43,10 @@ const FeaturesSection = () => {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            What can Emergent do for you?
+            What can maligeeAi do for you?
           </h2>
           <p className="text-gray-500 text-lg max-w-2xl mx-auto">
-            From concept to deployment, Emergent handles every aspect of software
+            From concept to deployment, maligeeAi handles every aspect of software
             development so you can focus on what matters most - your vision!
           </p>
         </div>
@@ -104,7 +112,7 @@ const FeaturesSection = () => {
                   </div>
                   <div className="flex-1 flex items-center justify-center">
                     <div className="bg-white rounded-md px-4 py-1 text-xs text-gray-400 border border-gray-200 w-48 text-center">
-                      app.emergent.sh
+                      app.maligeeai.com
                     </div>
                   </div>
                 </div>

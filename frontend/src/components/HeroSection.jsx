@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Github, Apple, Facebook, Mail } from 'lucide-react';
-import { showcaseItems } from '../data/mockData';
+import { showcaseItems as mockShowcase } from '../data/mockData';
+import { fetchShowcase } from '../services/api';
 
 const HeroSection = () => {
+  const [items, setItems] = useState(mockShowcase);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const totalSlides = showcaseItems.length;
+
+  useEffect(() => {
+    fetchShowcase().then(data => {
+      if (data && data.length > 0) setItems(data);
+    });
+  }, []);
+
+  const totalSlides = items.length;
 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % totalSlides);
@@ -26,7 +35,7 @@ const HeroSection = () => {
         <div className="flex flex-col items-center text-center relative z-10">
           <img
             src="https://assets.emergent.sh/assets/Landing-Hero-E.gif"
-            alt="Emergent Logo"
+            alt="maligeeAi Logo"
             className="w-20 h-20 mb-6"
           />
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 leading-tight">
@@ -124,13 +133,13 @@ const HeroSection = () => {
                 </div>
                 <div className="flex-1 flex items-center justify-center">
                   <div className="bg-white rounded-md px-4 py-1 text-xs text-gray-400 border border-gray-200 w-64 text-center">
-                    emergent.sh
+                    maligeeai.com
                   </div>
                 </div>
               </div>
               {/* Content Area - Slide */}
               <div className="relative overflow-hidden" style={{ height: '360px' }}>
-                {showcaseItems.map((item, index) => (
+                {items.map((item, index) => (
                   <div
                     key={item.id}
                     className="absolute inset-0 transition-all duration-500 ease-in-out flex items-center justify-center"
@@ -169,7 +178,7 @@ const HeroSection = () => {
               </svg>
             </button>
             <div className="flex gap-2">
-              {showcaseItems.map((_, index) => (
+              {items.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentSlide(index)}

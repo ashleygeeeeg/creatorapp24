@@ -8,7 +8,7 @@ const Header = () => {
           className="text-2xl font-medium tracking-tight"
           style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}
         >
-          emergent
+          maligeeAi
         </span>
       </div>
       <div className="flex items-center gap-3">
