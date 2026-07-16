@@ -17,10 +17,13 @@ React + Tailwind (frontend), FastAPI (backend), MongoDB. JWT auth. Emergent LLM 
 - "Partner in Crime" AI chat (GPT-4o via Emergent LLM key)
 - Deployment health check passed
 - Full E2E regression after GitHub repo sync: 24/24 backend tests + all frontend flows passed (test_reports/iteration_1.json)
+- Chat History on Dashboard: "Recent Conversations" section, cards open /chat?session={id} and hydrate past messages (verified)
+- Build Sharing: POST /api/builds/{id}/share generates stable slug; public page /share/{slug} (no auth) with build info + CTA; Share button with copy-to-clipboard on deployed builds (31/31 backend tests + frontend flows verified, test_reports/iteration_2.json)
 
 ## Key Endpoints
 - POST /api/auth/signup, /api/auth/login, GET /api/auth/me
-- GET/POST /api/builds, POST /api/builds/{id}/pay
+- GET/POST /api/builds, POST /api/builds/{id}/pay, POST /api/builds/{id}/share
+- GET /api/share/{slug} (public)
 - POST /api/chat, POST /api/waitlist
 - GET /api/showcase, /api/features
 

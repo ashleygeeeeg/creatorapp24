@@ -10,6 +10,7 @@ const API = `${BACKEND_URL}/api`;
 const ChatPage = () => {
   const { user, token, getAuthHeaders } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,9 @@ const ChatPage = () => {
 
   useEffect(() => {
     if (token) fetchSessions();
+    const sid = searchParams.get('session');
+    if (sid && token) loadSession(sid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => {
