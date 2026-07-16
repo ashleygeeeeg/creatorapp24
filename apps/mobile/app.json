@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -23,11 +22,6 @@
       },
       "package": "com.maligeeai.creatorapp24"
     },
-    "scheme": "creatorapp24",
-    "extra": {
-      "eas": {
-        "projectId": "replace-with-eas-project-id"
-      }
-    }
+    "scheme": "creatorapp24"
   }
 }
