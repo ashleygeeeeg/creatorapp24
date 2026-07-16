@@ -1,0 +1,18 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - '8000:8000'
+    env_file:
+      - .env
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=creatorapp24
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
