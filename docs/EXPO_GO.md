@@ -1,48 +1,95 @@
-# Run in Expo Go
+# Link CreatorApp24 to Expo Go
 
-## Quick steps
+## 1. One-time setup
 
 ```bash
-git pull origin main
 cd creatorapp24/apps/mobile
 cp .env.example .env
-# Edit EXPO_PUBLIC_WEB_URL — use https://your-app.vercel.app OR http://192.168.x.x:3000
 npm install
-npx expo start
+npx expo login
 ```
 
-Open **Expo Go** on your phone and scan the QR code.
+Use your [expo.dev](https://expo.dev) account (create one free if needed). Logging in links your dev session to Expo Go on your phone when you use the same account.
 
-## Two-server local setup
+## 2. Set the web app URL (WebView target)
 
-**Terminal 1 — API**
-```bash
-cd creatorapp24
-docker compose up
-```
-
-**Terminal 2 — Web (sync from Clone if needed)**
-```bash
-bash scripts/mirror-from-clone.sh
-cd frontend
-# frontend/.env.local: REACT_APP_BACKEND_URL=http://YOUR_LAN_IP:8000
-yarn install && yarn start --host 0.0.0.0
-```
-
-**Terminal 3 — Expo**
-```bash
-cd apps/mobile
-EXPO_PUBLIC_WEB_URL=http://YOUR_LAN_IP:3000 npx expo start
-```
-
-Replace `YOUR_LAN_IP` with your machine's address (`ipconfig` / `ifconfig`).
-
-## Easiest path (no LAN)
-
-Deploy web to Vercel, then in `apps/mobile/.env`:
+Edit `apps/mobile/.env`:
 
 ```env
-EXPO_PUBLIC_WEB_URL=https://your-app.vercel.app
+# Production (recommended — works from anywhere in Expo Go)
+EXPO_PUBLIC_WEB_URL=https://YOUR_VERCEL_APP.vercel.app
+
+# OR local dev (phone must reach your PC)
+# EXPO_PUBLIC_WEB_URL=http://192.168.1.XXX:3000
 ```
 
-Expo Go only loads the WebView; no rebuild needed when you change the website.
+Restart Metro after changing `.env`.
+
+## 3. Start and link Expo Go
+
+**Option A — same Wi‑Fi (fastest)**
+```bash
+npm run go
+# or: npx expo start --go
+```
+
+**Option B — tunnel (phone on cellular / different network)**
+```bash
+npm run tunnel
+# or: npx expo start --tunnel
+```
+First run may install `@expo/ngrok`; accept prompts.
+
+## 4. Open on your phone
+
+1. Install **Expo Go** ([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)).
+2. **Android:** Expo Go → **Scan QR code** from the terminal or `http://localhost:8081`.
+3. **iOS:** Camera app → scan QR → **Open in Expo Go**.
+4. Optional: Expo Go → **Log in** with the same expo.dev account as step 1.
+
+You should see the maligeeAi WebView with bottom tabs (Home, Login, Dashboard, Wingman).
+
+## 5. Open via link (manual)
+
+With Metro running, the terminal shows something like:
+
+```text
+exp://192.168.x.x:8081
+```
+
+On a device with Expo Go installed, you can paste that URL in Safari/Chrome or use **Enter URL manually** in Expo Go (Android).
+
+Tunnel mode shows an `exp://u.expo.dev/...` style URL — use that when not on LAN.
+
+## 6. Local web + API checklist
+
+| Service | Command | Phone must reach |
+|---------|---------|------------------|
+| API | `docker compose up` (repo root) | `http://LAN_IP:8000` in `REACT_APP_BACKEND_URL` |
+| Web | `cd frontend && yarn start` | `EXPO_PUBLIC_WEB_URL=http://LAN_IP:3000` |
+| Expo | `cd apps/mobile && npm run tunnel` | QR / exp link only |
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| QR doesn’t open app | Use `npm run tunnel`; update Expo Go from store |
+| “Could not connect” | Firewall: allow Node/Metro; try tunnel |
+| White screen in WebView | Wrong `EXPO_PUBLIC_WEB_URL`; test URL in phone browser first |
+| Stale bundle | Shake device → Reload; or `npx expo start -c` |
+
+## Optional: EAS project ID
+
+For builds later (not required for Expo Go):
+
+```bash
+npm install -g eas-cli
+eas login
+eas init
+```
+
+Add to `.env`:
+
+```env
+EXPO_PUBLIC_EAS_PROJECT_ID=your-uuid-from-eas
+```
