@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Plus, LogOut, MessageCircle, Rocket, Edit3, DollarSign, CheckCircle, Clock, Loader2, X } from 'lucide-react';
+import { Plus, LogOut, MessageCircle, Rocket, DollarSign, CheckCircle, Loader2, X, Share2, Check } from 'lucide-react';
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -16,6 +16,33 @@ const DashboardPage = () => {
   const [newBuildName, setNewBuildName] = useState('');
   const [newBuildDesc, setNewBuildDesc] = useState('');
   const [creating, setCreating] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [copiedBuildId, setCopiedBuildId] = useState(null);
+
+  const fetchSessions = async () => {
+    try {
+      const res = await axios.get(`${API}/chat/sessions`, { headers: getAuthHeaders() });
+      setSessions(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const shareBuild = async (buildId) => {
+    try {
+      const res = await axios.post(`${API}/builds/${buildId}/share`, {}, { headers: getAuthHeaders() });
+      const link = `${window.location.origin}/share/${res.data.share_slug}`;
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch {
+        window.prompt('Copy your share link:', link);
+      }
+      setCopiedBuildId(buildId);
+      setTimeout(() => setCopiedBuildId(null), 2500);
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to create share link');
+    }
+  };
 
   const fetchBuilds = async () => {
     try {
@@ -28,7 +55,7 @@ const DashboardPage = () => {
     }
   };
 
-  useEffect(() => { fetchBuilds(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchBuilds(); fetchSessions(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createBuild = async (e) => {
@@ -162,9 +189,20 @@ const DashboardPage = () => {
                     </button>
                   )}
                   {build.status === 'deployed' && (
-                    <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-emerald-600 text-sm font-medium">
-                      <CheckCircle className="w-3.5 h-3.5" /> Live
-                    </span>
+                    <>
+                      <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-emerald-600 text-sm font-medium">
+                        <CheckCircle className="w-3.5 h-3.5" /> Live
+                      </span>
+                      <button
+                        onClick={() => shareBuild(build.id)}
+                        data-testid={`share-build-btn-${build.id}`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          copiedBuildId === build.id ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {copiedBuildId === build.id ? (<><Check className="w-3.5 h-3.5" /> Copied!</>) : (<><Share2 className="w-3.5 h-3.5" /> Share</>)}
+                      </button>
+                    </>
                   )}
                 </div>
                 <p className="text-xs text-gray-400 mt-3">{new Date(build.created_at).toLocaleDateString()}</p>
@@ -172,6 +210,46 @@ const DashboardPage = () => {
             ))}
           </div>
         )}
+
+        {/* Recent Conversations */}
+        <div className="mt-12" data-testid="recent-conversations-section">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Recent Conversations</h3>
+              <p className="text-sm text-gray-500">Pick up where you left off with Partner in Crime</p>
+            </div>
+            <button onClick={() => navigate('/chat')} className="text-sm font-medium text-gray-700 hover:text-gray-900 flex items-center gap-1.5 transition-colors" data-testid="new-conversation-btn">
+              <Plus className="w-4 h-4" /> New Conversation
+            </button>
+          </div>
+          {sessions.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center" data-testid="no-conversations">
+              <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">No conversations yet. Say hi to Partner in Crime!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {sessions.slice(0, 6).map(s => (
+                <button
+                  key={s.session_id}
+                  onClick={() => navigate(`/chat?session=${s.session_id}`)}
+                  data-testid={`conversation-card-${s.session_id}`}
+                  className="bg-white rounded-xl border border-gray-200 p-4 text-left hover:shadow-md hover:border-gray-300 transition-all group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                      <MessageCircle className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-800 truncate group-hover:text-gray-900">{s.last_message}</p>
+                      <p className="text-xs text-gray-400 mt-1">{s.message_count} messages • {new Date(s.last_time).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* New Build Modal */}

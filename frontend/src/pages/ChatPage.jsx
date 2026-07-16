@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Send, ArrowLeft, Loader2, Plus, MessageCircle, Sparkles } from 'lucide-react';
 import axios from 'axios';
@@ -100,6 +100,7 @@ const ChatPage = () => {
           {sessions.map(s => (
             <button
               key={s.session_id}
+              data-testid={`chat-session-${s.session_id}`}
               onClick={() => loadSession(s.session_id)}
               className={`w-full text-left px-3 py-2.5 rounded-lg text-sm mb-1 transition-colors ${
                 sessionId === s.session_id ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:bg-gray-100'

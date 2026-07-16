@@ -190,3 +190,52 @@ class TestChat:
     def test_chat_sessions_list(self, session, auth_ctx):
         r = session.get(f"{API}/chat/sessions", headers=auth_ctx["headers"])
         assert r.status_code == 200
+
+
+# ─── Share Links ───
+class TestShare:
+    def test_share_non_deployed_returns_400(self, session, auth_ctx):
+        # free build was renamed but not deployed
+        bid = auth_ctx["free_build_id"]
+        r = session.post(f"{API}/builds/{bid}/share", headers=auth_ctx["headers"])
+        assert r.status_code == 400
+
+    def test_share_deployed_returns_slug(self, session, auth_ctx):
+        bid = auth_ctx["paid_build_id"]  # deployed in TestBuilds
+        r = session.post(f"{API}/builds/{bid}/share", headers=auth_ctx["headers"])
+        assert r.status_code == 200
+        slug = r.json()["share_slug"]
+        assert isinstance(slug, str) and len(slug) >= 6
+        auth_ctx["share_slug"] = slug
+
+    def test_share_slug_is_stable(self, session, auth_ctx):
+        bid = auth_ctx["paid_build_id"]
+        r1 = session.post(f"{API}/builds/{bid}/share", headers=auth_ctx["headers"])
+        r2 = session.post(f"{API}/builds/{bid}/share", headers=auth_ctx["headers"])
+        assert r1.json()["share_slug"] == r2.json()["share_slug"]
+
+    def test_public_get_share_no_auth(self, session, auth_ctx):
+        slug = auth_ctx["share_slug"]
+        # no auth header
+        r = requests.get(f"{API}/share/{slug}")
+        assert r.status_code == 200
+        d = r.json()
+        assert d["name"] and d["status"] == "deployed"
+        assert "owner_name" in d
+
+    def test_public_get_bad_slug_404(self, session):
+        r = requests.get(f"{API}/share/badslug_zzz_nope")
+        assert r.status_code == 404
+
+    def test_share_others_build_404(self, session, auth_ctx):
+        # create a second user and try to share the first user's build
+        email2 = f"other_{UNIQUE}@maligee.ai"
+        r = session.post(f"{API}/auth/signup", json={"email": email2, "password": TEST_PASSWORD})
+        assert r.status_code == 200
+        headers2 = {"Authorization": f"Bearer {r.json()['token']}"}
+        r = session.post(f"{API}/builds/{auth_ctx['paid_build_id']}/share", headers=headers2)
+        assert r.status_code == 404
+
+    def test_share_requires_auth(self, session, auth_ctx):
+        r = requests.post(f"{API}/builds/{auth_ctx['paid_build_id']}/share")
+        assert r.status_code == 401

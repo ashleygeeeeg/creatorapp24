@@ -360,6 +360,33 @@ async def pay_for_build(build_id: str, user=Depends(get_current_user)):
     logger.info(f"Mock payment for build {build_id} by user {user['id']}")
     return {"message": "Payment successful (mock)", "payment_status": "mock_paid"}
 
+@api_router.post("/builds/{build_id}/share")
+async def create_share_link(build_id: str, user=Depends(get_current_user)):
+    build = await db.builds.find_one({"id": build_id, "user_id": user['id']})
+    if not build:
+        raise HTTPException(status_code=404, detail="Build not found")
+    if build['status'] != 'deployed':
+        raise HTTPException(status_code=400, detail="Only deployed builds can be shared")
+    slug = build.get('share_slug')
+    if not slug:
+        slug = uuid.uuid4().hex[:8]
+        await db.builds.update_one({"id": build_id}, {"$set": {"share_slug": slug}})
+    return {"share_slug": slug}
+
+@api_router.get("/share/{slug}")
+async def get_shared_build(slug: str):
+    build = await db.builds.find_one({"share_slug": slug}, {"_id": 0})
+    if not build or build.get('status') != 'deployed':
+        raise HTTPException(status_code=404, detail="Shared build not found")
+    owner = await db.users.find_one({"id": build['user_id']}, {"_id": 0})
+    return {
+        "name": build['name'],
+        "description": build.get('description', ''),
+        "status": build['status'],
+        "created_at": build['created_at'],
+        "owner_name": owner.get('name', 'A maligeeAi builder') if owner else 'A maligeeAi builder'
+    }
+
 @api_router.get("/pricing")
 async def get_pricing():
     return {
