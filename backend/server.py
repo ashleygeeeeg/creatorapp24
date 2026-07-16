@@ -325,6 +325,10 @@ async def google_session(data: GoogleSessionRequest, response: Response):
 @api_router.post("/auth/logout")
 async def logout_user(request: Request, response: Response):
     token = request.cookies.get("session_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
     if token:
         await db.user_sessions.delete_one({"session_token": token})
     response.delete_cookie("session_token", path="/", secure=True, samesite="none")

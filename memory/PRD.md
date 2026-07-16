@@ -13,6 +13,7 @@ React + Tailwind (frontend), FastAPI (backend), MongoDB. JWT auth. Emergent LLM 
 ## Implemented (as of June 2026)
 - Landing page: hero w/ spinning MG.AI logo, features, showcase carousel, waitlist, footer
 - JWT auth: signup, login, /api/auth/me, protected routes
+- Google Sign-In via Emergent-managed Auth (June 2026): "Continue with Google" on auth page, backend session exchange (POST /api/auth/google/session), httpOnly session_token cookie (7 days), db.user_sessions collection, POST /api/auth/logout, auth resolver accepts cookie OR Bearer (JWT or session token). Users linked by email in existing users collection. Verified 38/38 backend + all frontend flows (test_reports/iteration_3.json)
 - Dashboard: build management, mock payment ($10 after first free build), deploy
 - "Partner in Crime" AI chat (GPT-4o via Emergent LLM key)
 - Deployment health check passed
@@ -22,6 +23,7 @@ React + Tailwind (frontend), FastAPI (backend), MongoDB. JWT auth. Emergent LLM 
 
 ## Key Endpoints
 - POST /api/auth/signup, /api/auth/login, GET /api/auth/me
+- POST /api/auth/google/session (Emergent Google Auth exchange), POST /api/auth/logout
 - GET/POST /api/builds, POST /api/builds/{id}/pay, POST /api/builds/{id}/share
 - GET /api/share/{slug} (public)
 - POST /api/chat, POST /api/waitlist
