@@ -33,4 +33,9 @@ cd frontend && yarn install && yarn start
 ```bash
 git remote add origin https://github.com/ashleygeeeeg/creatorapp24.git
 git push -u origin main
+
+## git remote set-url origin https://github.com/appcreators24/Clone.git
+git add .
+git commit -m "Initial commit"
+git push -u origin main
 ```
