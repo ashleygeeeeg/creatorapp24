@@ -1,5 +1,8 @@
 # CreatorApp24 (maligeeAi)
 
+[![CI](https://github.com/ashleygeeeeg/creatorapp24/actions/workflows/ci.yml/badge.svg)](https://github.com/ashleygeeeeg/creatorapp24/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ashleygeeeeg/creatorapp24/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ashleygeeeeg/creatorapp24/actions/workflows/codeql-analysis.yml)
+
 **Production repository** for the CreatorApp24 / AppMaker24 product: web app + API + AppCreator24 Android WebView shell.
 
 - **GitHub:** https://github.com/ashleygeeeeg/creatorapp24
