@@ -1,18 +1,5 @@
-# Frontend
+# Frontend (mirrored from ashleygeeeeg/Clone)
 
-The full React app lives in **Clone**. Sync into this repo:
+This directory is a mirror of the frontend application maintained in https://github.com/ashleygeeeeg/Clone. It contains a Create React App-based app configured to run with craco and Tailwind.
 
-```bash
-bash scripts/mirror-from-clone.sh
-```
-
-Or clone Clone and push to creatorapp24:
-
-```bash
-git clone https://github.com/ashleygeeeeg/Clone.git
-cd Clone
-git remote add creator https://github.com/ashleygeeeeg/creatorapp24.git
-git push creator main:main
-```
-
-Deploy on Vercel with **Root Directory** = `frontend`.
+To update/sync the frontend contents, run the repository's `scripts/mirror-from-clone.sh` or manually copy files from the Clone repository.
