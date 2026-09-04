@@ -16,9 +16,8 @@ click==8.3.2
 cryptography==46.0.7
 distro==1.9.0
 dnspython==2.8.0
-ecdsa==0.19.2
+ecdsa==0.19.0
 email-validator==2.3.0
-emergentintegrations==0.1.0
 fastapi==0.110.1
 fastuuid==0.14.0
 filelock==3.25.2
@@ -74,13 +73,10 @@ pluggy==1.6.0
 propcache==0.4.1
 proto-plus==1.27.2
 protobuf==5.29.6
-pyasn1==0.6.3
+pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycodestyle==2.14.0
 pycparser==3.0
-pydantic==2.12.5
-pydantic_core==2.41.5
-pyflakes==3.4.0
 Pygments==2.20.0
 PyJWT==2.12.1
 pymongo==4.5.0
@@ -96,7 +92,6 @@ referencing==0.37.0
 regex==2026.4.4
 requests==2.33.1
 requests-oauthlib==2.0.0
-rich==14.3.3
 rpds-py==0.30.0
 rsa==4.9.1
 s3transfer==0.16.0
