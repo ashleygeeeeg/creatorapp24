@@ -1,6 +1,8 @@
 import os
 from fastapi import APIRouter
 
+from routes.agent import register as register_agent_routes
+
 
 def register(router: APIRouter) -> None:
     """Register AppCreator24 / appmaker24 WebView URL manifest on the main API router."""
@@ -30,6 +32,10 @@ def register(router: APIRouter) -> None:
                 {"title": "Login", "path": "/auth", "url": f"{public_web}/auth"},
                 {"title": "Dashboard", "path": "/dashboard", "url": f"{public_web}/dashboard"},
                 {"title": "Partner in Crime", "path": "/chat", "url": f"{public_web}/chat"},
+                {"title": "AI Code Workspace", "path": "/workspace", "url": f"{public_web}/workspace"},
             ],
             "docs": "https://github.com/ashleygeeeeg/creatorapp24/blob/main/docs/APPMAKER24.md",
         }
+
+    # Keep route registration modular without changing server.py's startup contract.
+    register_agent_routes(router)
