@@ -30,16 +30,16 @@ jobs:
       - name: Lint (black check)
         run: |
           black --version || pip install black
-          black --check backend || true
+          black --check backend
       - name: Flake8
         run: |
-          flake8 backend || true
+          flake8 backend
       - name: Mypy
         run: |
-          mypy backend || true
+          mypy backend
       - name: Run tests
         run: |
           if [ -d "backend" ]; then
             cd backend
-            pytest -q || true
+            pytest -q --tb=short
           fi
