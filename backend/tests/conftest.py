@@ -1,7 +1,7 @@
 """Pytest configuration and fixtures for backend tests."""
 import os
 import asyncio
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator, Generator, Dict, Any
 import pytest
 from fastapi.testclient import TestClient
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -18,6 +18,7 @@ os.environ['CORS_ORIGINS'] = '*'
 os.environ['PUBLIC_WEB_URL'] = 'http://localhost:3000'
 os.environ['PUBLIC_API_URL'] = 'http://localhost:8000'
 os.environ['APPCREATOR24_APP_URL'] = 'https://www.appcreator24.com'
+os.environ['BACKEND_PUBLIC_URL'] = 'http://localhost:8000'
 
 
 @pytest.fixture
@@ -68,7 +69,7 @@ async def db(mongo_client: AsyncIOMotorClient) -> AsyncGenerator[AsyncIOMotorCli
 
 
 # Import server after setting environment variables
-from backend.server import app, get_current_user, get_optional_user, db as app_db
+from backend.server import app, get_current_user, get_optional_user, db as app_db, create_token
 
 
 @pytest.fixture
@@ -76,6 +77,20 @@ def client() -> Generator[TestClient, None, None]:
     """Create a TestClient for FastAPI app."""
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def auth_headers() -> Dict[str, str]:
+    """Create authorization headers for a test user."""
+    token = create_token("test-user-id", "test@example.com")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def auth_headers_for_user(user_id: str = "test-user-id", email: str = "test@example.com") -> Dict[str, str]:
+    """Create authorization headers for a specific user."""
+    token = create_token(user_id, email)
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
