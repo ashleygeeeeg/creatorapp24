@@ -352,8 +352,12 @@ async def seed_data():
 
 
 from routes.appmaker24 import register as register_appmaker24_routes
+from routes.system import router as system_router
+
 register_appmaker24_routes(api_router)
 
+# Mount system router (health checks, etc.)
+app.include_router(system_router)
 app.include_router(api_router)
 
 app.add_middleware(
