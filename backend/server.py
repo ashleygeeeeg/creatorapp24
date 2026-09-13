@@ -152,7 +152,7 @@ def decode_token(token: str) -> dict:
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     if not credentials:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_token(credentials.credentials)
@@ -161,7 +161,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
-async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[dict]:
     if not credentials:
         return None
     try:
@@ -173,7 +173,7 @@ async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(
 
 
 @api_router.post("/auth/signup")
-async def signup(data: UserCreate):
+async def signup(data: UserCreate) -> dict:
     existing = await db.users.find_one({"email": data.email.lower()})
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -193,7 +193,7 @@ async def signup(data: UserCreate):
     return {"token": token, "user": {"id": user_id, "email": data.email.lower(), "name": user_doc["name"], "created_at": now, "build_count": 0, "has_free_build": True}}
 
 @api_router.post("/auth/login")
-async def login(data: UserLogin):
+async def login(data: UserLogin) -> dict:
     user = await db.users.find_one({"email": data.email.lower()})
     if not user or not verify_password(data.password, user['password_hash']):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -201,13 +201,13 @@ async def login(data: UserLogin):
     return {"token": token, "user": {"id": user['id'], "email": user['email'], "name": user.get('name', ''), "created_at": user['created_at'], "build_count": user.get('build_count', 0), "has_free_build": user.get('has_free_build', True)}}
 
 @api_router.get("/auth/me")
-async def get_me(user=Depends(get_current_user)):
+async def get_me(user=Depends(get_current_user)) -> dict:
     build_count = await db.builds.count_documents({"user_id": user['id']})
     return {"id": user['id'], "email": user['email'], "name": user.get('name', ''), "created_at": user['created_at'], "build_count": build_count, "has_free_build": user.get('has_free_build', True)}
 
 
 @api_router.post("/builds")
-async def create_build(data: BuildCreate, user=Depends(get_current_user)):
+async def create_build(data: BuildCreate, user=Depends(get_current_user)) -> dict:
     user_id = user['id']
     build_count = await db.builds.count_documents({"user_id": user_id})
     is_free = build_count == 0 and user.get('has_free_build', True)
@@ -234,11 +234,11 @@ async def create_build(data: BuildCreate, user=Depends(get_current_user)):
     return {**build_doc}
 
 @api_router.get("/builds")
-async def get_builds(user=Depends(get_current_user)):
+async def get_builds(user=Depends(get_current_user)) -> list:
     return await db.builds.find({"user_id": user['id']}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
 @api_router.put("/builds/{build_id}")
-async def edit_build(build_id: str, data: BuildEdit, user=Depends(get_current_user)):
+async def edit_build(build_id: str, data: BuildEdit, user=Depends(get_current_user)) -> dict:
     build = await db.builds.find_one({"id": build_id, "user_id": user['id']})
     if not build:
         raise HTTPException(status_code=404, detail="Build not found")
@@ -251,7 +251,7 @@ async def edit_build(build_id: str, data: BuildEdit, user=Depends(get_current_us
     return await db.builds.find_one({"id": build_id}, {"_id": 0})
 
 @api_router.post("/builds/{build_id}/deploy")
-async def deploy_build(build_id: str, user=Depends(get_current_user)):
+async def deploy_build(build_id: str, user=Depends(get_current_user)) -> dict:
     build = await db.builds.find_one({"id": build_id, "user_id": user['id']})
     if not build:
         raise HTTPException(status_code=404, detail="Build not found")
@@ -261,7 +261,7 @@ async def deploy_build(build_id: str, user=Depends(get_current_user)):
     return {"message": "Build deployed successfully", "status": BUILD_STATUS_DEPLOYED}
 
 @api_router.post("/builds/{build_id}/pay")
-async def pay_for_build(build_id: str, user=Depends(get_current_user)):
+async def pay_for_build(build_id: str, user=Depends(get_current_user)) -> dict:
     build = await db.builds.find_one({"id": build_id, "user_id": user['id']})
     if not build:
         raise HTTPException(status_code=404, detail="Build not found")
@@ -283,7 +283,7 @@ async def pay_for_build(build_id: str, user=Depends(get_current_user)):
     return {"message": "Payment successful (mock)", "payment_status": PAYMENT_STATUS_MOCK_PAID}
 
 @api_router.get("/pricing")
-async def get_pricing():
+async def get_pricing() -> dict:
     return {
         "plans": [
             {
@@ -323,51 +323,81 @@ async def get_pricing():
 
 PARTNER_SYSTEM_MESSAGE = """You are Partner in Crime for maligeeAi. Be helpful and witty. Building full implementation code requires a paid/free build on the account; otherwise guide users to Dashboard."""
 
+async def _get_can_build(user: Optional[dict]) -> bool:
+    if not user:
+        return False
+    paid_builds = await db.builds.count_documents({
+        "user_id": user['id'],
+        "payment_status": {"$in": [PAYMENT_STATUS_FREE, PAYMENT_STATUS_PAID, PAYMENT_STATUS_MOCK_PAID]}
+    })
+    return paid_builds > 0
+
+
+async def _build_system_message(can_build: bool) -> str:
+    build_msg = "\nUser may build code." if can_build else "\nUser has no builds yet; do not write full implementation code."
+    return PARTNER_SYSTEM_MESSAGE + build_msg
+
+
+async def _load_chat_history(session_id: str, user_id: str) -> list:
+    return await db.chat_history.find({"session_id": session_id, "user_id": user_id}).sort("created_at", 1).to_list(50)
+
+
+async def _save_chat_messages(session_id: str, user_id: str, message: str, response: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    await db.chat_history.insert_many([
+        {"session_id": session_id, "user_id": user_id, "role": "user", "content": message, "created_at": now},
+        {"session_id": session_id, "user_id": user_id, "role": "assistant", "content": response, "created_at": now}
+    ])
+
+
 @api_router.post("/chat")
-async def chat_with_ai(data: ChatMessage, user=Depends(get_optional_user)):
+async def chat_with_ai(data: ChatMessage, user=Depends(get_optional_user)) -> dict:
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
     session_id = data.session_id or str(uuid.uuid4())
     user_id = user['id'] if user else 'anonymous'
-    can_build = False
-    if user:
-        paid_builds = await db.builds.count_documents({
-            "user_id": user['id'],
-            "payment_status": {"$in": [PAYMENT_STATUS_FREE, PAYMENT_STATUS_PAID, PAYMENT_STATUS_MOCK_PAID]}
-        })
-        can_build = paid_builds > 0
-    can_build_msg = "\nUser may build code." if can_build else "\nUser has no builds yet; do not write full implementation code."
-    system_msg = PARTNER_SYSTEM_MESSAGE + can_build_msg
+    can_build = await _get_can_build(user)
+    system_msg = await _build_system_message(can_build)
     chat_key = f"{user_id}_{session_id}"
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=chat_key, system_message=system_msg)
         chat.with_model("openai", "gpt-4o")
-        history = await db.chat_history.find({"session_id": session_id, "user_id": user_id}).sort("created_at", 1).to_list(50)
+        history = await _load_chat_history(session_id, user_id)
         for msg in history:
             chat.messages.append({"role": msg['role'], "content": msg['content']})
         response = await chat.send_message(UserMessage(text=data.message))
-        now = datetime.now(timezone.utc).isoformat()
-        await db.chat_history.insert_many([{"session_id": session_id, "user_id": user_id, "role": "user", "content": data.message, "created_at": now}, {"session_id": session_id, "user_id": user_id, "role": "assistant", "content": response, "created_at": now}])
+        await _save_chat_messages(session_id, user_id, data.message, response)
         return {"response": response, "session_id": session_id}
     except Exception as e:
         logger.error(f"AI chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 
 @api_router.get("/chat/history/{session_id}")
-async def get_chat_history(session_id: str, user=Depends(get_current_user)):
+async def get_chat_history(session_id: str, user=Depends(get_current_user)) -> list:
     return await db.chat_history.find({"session_id": session_id, "user_id": user['id']}, {"_id": 0}).sort("created_at", 1).to_list(100)
 
 @api_router.get("/chat/sessions")
-async def get_chat_sessions(user=Depends(get_current_user)):
+async def get_chat_sessions(user=Depends(get_current_user)) -> list:
     pipeline = [{"$match": {"user_id": user['id']}}, {"$group": {"_id": "$session_id", "last_message": {"$last": "$content"}, "last_time": {"$last": "$created_at"}, "count": {"$sum": 1}}}, {"$sort": {"last_time": -1}}, {"$limit": 20}]
     sessions = await db.chat_history.aggregate(pipeline).to_list(20)
     return [{"session_id": s["_id"], "last_message": s["last_message"][:80], "last_time": s["last_time"], "message_count": s["count"]} for s in sessions]
 
 
-SEED_SHOWCASE = [{"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob1.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop1.webp", "order": 1}, {"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob2.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop2.webp", "order": 2}, {"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob3.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop3.webp", "order": 3}, {"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob4.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop4.webp", "order": 4}]
-SEED_FEATURES = [{"icon": "monitor-smartphone", "title": "Build websites and mobile apps", "description": "Transform your ideas into fully functional websites and mobile apps.", "mockup_type": "library", "order": 1}, {"icon": "bot", "title": "Build custom agents", "description": "Create intelligent AI agents that automate tasks.", "mockup_type": "agent", "order": 2}, {"icon": "link", "title": "Build powerful integrations", "description": "Connect your apps to thousands of services and APIs.", "mockup_type": "integration", "order": 3}]
+SEED_SHOWCASE: list[dict] = [
+    {"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob1.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop1.webp", "order": 1},
+    {"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob2.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop2.webp", "order": 2},
+    {"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob3.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop3.webp", "order": 3},
+    {"mobile_image": "https://assets.emergent.sh/assets/showcase/Mob4.webp", "laptop_image": "https://assets.emergent.sh/assets/showcase/Laptop4.webp", "order": 4}
+]
+SEED_FEATURES: list[dict] = [
+    {"icon": "monitor-smartphone", "title": "Build websites and mobile apps", "description": "Transform your ideas into fully functional websites and mobile apps.", "mockup_type": "library", "order": 1},
+    {"icon": "bot", "title": "Build custom agents", "description": "Create intelligent AI agents that automate tasks.", "mockup_type": "agent", "order": 2},
+    {"icon": "link", "title": "Build powerful integrations", "description": "Connect your apps to thousands of services and APIs.", "mockup_type": "integration", "order": 3}
+]
+SEED_STATS: dict = {"users_count": "3M+", "description": "users worldwide building & launching real applications in minutes."}
 
-async def seed_data_internal():
+
+async def seed_data_internal() -> None:
     if await db.showcase.count_documents({}) == 0:
         for d in SEED_SHOWCASE:
             await db.showcase.insert_one({**d, "id": str(uuid.uuid4())})
@@ -375,14 +405,14 @@ async def seed_data_internal():
         for d in SEED_FEATURES:
             await db.features.insert_one({**d, "id": str(uuid.uuid4())})
     if await db.stats.count_documents({}) == 0:
-        await db.stats.insert_one({"users_count": "3M+", "description": "users worldwide building & launching real applications in minutes."})
+        await db.stats.insert_one(SEED_STATS)
 
 @api_router.get("/")
-async def root():
+async def root() -> dict:
     return {"message": "maligeeAi API is running"}
 
 @api_router.get("/showcase", response_model=List[ShowcaseItem])
-async def get_showcase():
+async def get_showcase() -> list:
     items = await db.showcase.find({}, {"_id": 0}).sort("order", 1).to_list(100)
     if not items:
         await seed_data_internal()
@@ -390,7 +420,7 @@ async def get_showcase():
     return items
 
 @api_router.get("/features", response_model=List[Feature])
-async def get_features():
+async def get_features() -> list:
     items = await db.features.find({}, {"_id": 0}).sort("order", 1).to_list(100)
     if not items:
         await seed_data_internal()
@@ -398,7 +428,7 @@ async def get_features():
     return items
 
 @api_router.get("/stats", response_model=Stats)
-async def get_stats():
+async def get_stats() -> dict:
     stats = await db.stats.find_one({}, {"_id": 0})
     if not stats:
         await seed_data_internal()
@@ -406,7 +436,7 @@ async def get_stats():
     return stats or Stats()
 
 @api_router.post("/waitlist", response_model=WaitlistEntry)
-async def create_waitlist_entry(entry: WaitlistCreate):
+async def create_waitlist_entry(entry: WaitlistCreate) -> WaitlistEntry:
     existing = await db.waitlist.find_one({"email": entry.email})
     if existing:
         raise HTTPException(status_code=409, detail="Email already on waitlist")
@@ -417,11 +447,11 @@ async def create_waitlist_entry(entry: WaitlistCreate):
     return obj
 
 @api_router.get("/waitlist/count")
-async def get_waitlist_count():
+async def get_waitlist_count() -> dict:
     return {"count": await db.waitlist.count_documents({})}
 
 @api_router.post("/seed")
-async def seed_data():
+async def seed_data() -> dict:
     await seed_data_internal()
     return {"message": "Database seeded successfully"}
 
@@ -443,6 +473,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_seed_data() -> None:
+    await seed_data_internal()
+
+
 @app.on_event("shutdown")
-async def shutdown_db_client():
+async def shutdown_db_client() -> None:
     client.close()
