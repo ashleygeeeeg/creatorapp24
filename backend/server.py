@@ -14,7 +14,25 @@ import jwt
 from datetime import datetime, timezone, timedelta
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
+# Constants
 ROOT_DIR = Path(__file__).parent
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRY_HOURS = 72
+BUILD_FREE_PRICE = 0.0
+BUILD_PAID_PRICE = 10.0
+
+# Payment status constants
+PAYMENT_STATUS_FREE = 'free'
+PAYMENT_STATUS_PAID = 'paid'
+PAYMENT_STATUS_PENDING = 'pending'
+PAYMENT_STATUS_MOCK_PAID = 'mock_paid'
+PAYMENT_STATUS_MOCK_COMPLETED = 'mock_completed'
+
+# Build status constants
+BUILD_STATUS_DRAFT = 'draft'
+BUILD_STATUS_DEPLOYED = 'deployed'
+
+# Load configuration
 load_dotenv(ROOT_DIR / '.env')
 
 mongo_url = os.environ['MONGO_URL']
@@ -22,8 +40,6 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'maligeeai-secret-key-change-in-prod-2025')
-JWT_ALGORITHM = 'HS256'
-JWT_EXPIRY_HOURS = 72
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
 app = FastAPI()
@@ -195,10 +211,22 @@ async def create_build(data: BuildCreate, user=Depends(get_current_user)):
     user_id = user['id']
     build_count = await db.builds.count_documents({"user_id": user_id})
     is_free = build_count == 0 and user.get('has_free_build', True)
-    payment_status = "free" if is_free else "pending"
+    payment_status = PAYMENT_STATUS_FREE if is_free else PAYMENT_STATUS_PENDING
+    price = BUILD_FREE_PRICE if is_free else BUILD_PAID_PRICE
     build_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
-    build_doc = {"id": build_id, "user_id": user_id, "name": data.name, "description": data.description or "", "status": "draft", "is_free": is_free, "payment_status": payment_status, "price": 0.0 if is_free else 10.0, "created_at": now, "updated_at": now}
+    build_doc = {
+        "id": build_id,
+        "user_id": user_id,
+        "name": data.name,
+        "description": data.description or "",
+        "status": BUILD_STATUS_DRAFT,
+        "is_free": is_free,
+        "payment_status": payment_status,
+        "price": price,
+        "created_at": now,
+        "updated_at": now
+    }
     await db.builds.insert_one(build_doc)
     if is_free:
         await db.users.update_one({"id": user_id}, {"$set": {"has_free_build": False}})
@@ -227,10 +255,10 @@ async def deploy_build(build_id: str, user=Depends(get_current_user)):
     build = await db.builds.find_one({"id": build_id, "user_id": user['id']})
     if not build:
         raise HTTPException(status_code=404, detail="Build not found")
-    if not build['is_free'] and build['payment_status'] not in ('paid', 'mock_paid', 'free'):
-        raise HTTPException(status_code=402, detail="Payment required before deployment. $10.00 per build.")
-    await db.builds.update_one({"id": build_id}, {"$set": {"status": "deployed", "updated_at": datetime.now(timezone.utc).isoformat()}})
-    return {"message": "Build deployed successfully", "status": "deployed"}
+    if not build['is_free'] and build['payment_status'] not in (PAYMENT_STATUS_PAID, PAYMENT_STATUS_MOCK_PAID, PAYMENT_STATUS_FREE):
+        raise HTTPException(status_code=402, detail=f"Payment required before deployment. ${BUILD_PAID_PRICE:.2f} per build.")
+    await db.builds.update_one({"id": build_id}, {"$set": {"status": BUILD_STATUS_DEPLOYED, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return {"message": "Build deployed successfully", "status": BUILD_STATUS_DEPLOYED}
 
 @api_router.post("/builds/{build_id}/pay")
 async def pay_for_build(build_id: str, user=Depends(get_current_user)):
@@ -238,16 +266,59 @@ async def pay_for_build(build_id: str, user=Depends(get_current_user)):
     if not build:
         raise HTTPException(status_code=404, detail="Build not found")
     if build['is_free']:
-        return {"message": "This build is free!", "payment_status": "free"}
-    if build['payment_status'] in ('paid', 'mock_paid'):
+        return {"message": "This build is free!", "payment_status": PAYMENT_STATUS_FREE}
+    if build['payment_status'] in (PAYMENT_STATUS_PAID, PAYMENT_STATUS_MOCK_PAID):
         return {"message": "Already paid", "payment_status": build['payment_status']}
-    await db.builds.update_one({"id": build_id}, {"$set": {"payment_status": "mock_paid", "updated_at": datetime.now(timezone.utc).isoformat()}})
-    await db.payments.insert_one({"id": str(uuid.uuid4()), "build_id": build_id, "user_id": user['id'], "amount": 10.0, "currency": "USD", "status": "mock_completed", "provider": "mock_stripe", "created_at": datetime.now(timezone.utc).isoformat()})
-    return {"message": "Payment successful (mock)", "payment_status": "mock_paid"}
+    await db.builds.update_one({"id": build_id}, {"$set": {"payment_status": PAYMENT_STATUS_MOCK_PAID, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    await db.payments.insert_one({
+        "id": str(uuid.uuid4()),
+        "build_id": build_id,
+        "user_id": user['id'],
+        "amount": BUILD_PAID_PRICE,
+        "currency": "USD",
+        "status": PAYMENT_STATUS_MOCK_COMPLETED,
+        "provider": "mock_stripe",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    return {"message": "Payment successful (mock)", "payment_status": PAYMENT_STATUS_MOCK_PAID}
 
 @api_router.get("/pricing")
 async def get_pricing():
-    return {"plans": [{"name": "First Build", "price": 0, "price_label": "FREE", "description": "Your first build and deployment is completely free", "features": ["1 free build & deployment", "Unlimited edits on your build", "Partner in Crime AI (unlimited)", "Full-stack web & mobile apps"]}, {"name": "Per Build", "price": 10.0, "price_label": "$10.00", "description": "Each additional build after your first", "features": ["1 build & deployment", "Unlimited edits (always free)", "Partner in Crime AI (unlimited)", "Full-stack web & mobile apps", "All payment methods accepted"]}], "notes": ["First build is always free", "Edits to any build are always free", "AI Partner in Crime is always free to chat", "AI cannot assist with building until you pay for a build"]}
+    return {
+        "plans": [
+            {
+                "name": "First Build",
+                "price": BUILD_FREE_PRICE,
+                "price_label": "FREE",
+                "description": "Your first build and deployment is completely free",
+                "features": [
+                    "1 free build & deployment",
+                    "Unlimited edits on your build",
+                    "Partner in Crime AI (unlimited)",
+                    "Full-stack web & mobile apps"
+                ]
+            },
+            {
+                "name": "Per Build",
+                "price": BUILD_PAID_PRICE,
+                "price_label": f"${BUILD_PAID_PRICE:.2f}",
+                "description": "Each additional build after your first",
+                "features": [
+                    "1 build & deployment",
+                    "Unlimited edits (always free)",
+                    "Partner in Crime AI (unlimited)",
+                    "Full-stack web & mobile apps",
+                    "All payment methods accepted"
+                ]
+            }
+        ],
+        "notes": [
+            "First build is always free",
+            "Edits to any build are always free",
+            "AI Partner in Crime is always free to chat",
+            "AI cannot assist with building until you pay for a build"
+        ]
+    }
 
 
 PARTNER_SYSTEM_MESSAGE = """You are Partner in Crime for maligeeAi. Be helpful and witty. Building full implementation code requires a paid/free build on the account; otherwise guide users to Dashboard."""
@@ -260,9 +331,13 @@ async def chat_with_ai(data: ChatMessage, user=Depends(get_optional_user)):
     user_id = user['id'] if user else 'anonymous'
     can_build = False
     if user:
-        paid_builds = await db.builds.count_documents({"user_id": user['id'], "payment_status": {"$in": ["free", "paid", "mock_paid"]}})
+        paid_builds = await db.builds.count_documents({
+            "user_id": user['id'],
+            "payment_status": {"$in": [PAYMENT_STATUS_FREE, PAYMENT_STATUS_PAID, PAYMENT_STATUS_MOCK_PAID]}
+        })
         can_build = paid_builds > 0
-    system_msg = PARTNER_SYSTEM_MESSAGE + ("\nUser may build code." if can_build else "\nUser has no builds yet; do not write full implementation code.")
+    can_build_msg = "\nUser may build code." if can_build else "\nUser has no builds yet; do not write full implementation code."
+    system_msg = PARTNER_SYSTEM_MESSAGE + can_build_msg
     chat_key = f"{user_id}_{session_id}"
     try:
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=chat_key, system_message=system_msg)
