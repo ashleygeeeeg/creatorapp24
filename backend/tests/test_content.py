@@ -1,26 +1,13 @@
 """Tests for content endpoints: showcase, features, stats, waitlist."""
-import os
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timezone
 import uuid
 
-# Set test environment
-os.environ['MONGO_URL'] = 'mongodb://localhost:27017'
-os.environ['DB_NAME'] = 'creatorapp24_test'
-os.environ['JWT_SECRET'] = 'test-secret-key-for-testing-only'
-os.environ['JWT_EXPIRY_HOURS'] = '24'
-
 from backend.server import app, create_token
 
 client = TestClient(app)
-
-
-def get_auth_headers(user_id: str, email: str) -> dict:
-    """Helper to get authorization headers with a valid token."""
-    token = create_token(user_id, email)
-    return {"Authorization": f"Bearer {token}"}
 
 
 class TestShowcase:

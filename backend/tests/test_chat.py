@@ -1,26 +1,12 @@
 """Tests for chat endpoints."""
-import os
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timezone
 
-# Set test environment
-os.environ['MONGO_URL'] = 'mongodb://localhost:27017'
-os.environ['DB_NAME'] = 'creatorapp24_test'
-os.environ['JWT_SECRET'] = 'test-secret-key-for-testing-only'
-os.environ['JWT_EXPIRY_HOURS'] = '24'
-os.environ['EMERGENT_LLM_KEY'] = 'test-llm-key'
-
 from backend.server import app, create_token, hash_password
 
 client = TestClient(app)
-
-
-def get_auth_headers(user_id: str, email: str) -> dict:
-    """Helper to get authorization headers with a valid token."""
-    token = create_token(user_id, email)
-    return {"Authorization": f"Bearer {token}"}
 
 
 class TestChatWithAI:
@@ -55,7 +41,7 @@ class TestChatWithAI:
         mock_builds.count_documents.return_value = 1  # Has paid builds
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/chat",
             json={"message": "Hello, AI!"},
@@ -97,7 +83,7 @@ class TestChatWithAI:
         mock_builds.count_documents.return_value = 1
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/chat",
             json={"message": "Hello", "session_id": "existing-session-id"},
@@ -123,7 +109,7 @@ class TestChatWithAI:
         
         test_client = TestClient(reloaded_app)
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = test_client.post(
             "/api/chat",
             json={"message": "Hello"},
@@ -194,7 +180,7 @@ class TestChatWithAI:
         mock_builds.count_documents.return_value = 0  # No paid builds
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/chat",
             json={"message": "Build me an app"},
@@ -232,7 +218,7 @@ class TestChatWithAI:
         mock_builds.count_documents.return_value = 1
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/chat",
             json={"message": "Hello"},
@@ -269,7 +255,7 @@ class TestGetChatHistory:
         ]
         mock_db.chat_history = mock_chat_history
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.get(
             "/api/chat/history/test-session",
             headers=headers
@@ -289,7 +275,7 @@ class TestGetChatHistory:
         mock_chat_history.find.return_value.sort.return_value.to_list.return_value = []
         mock_db.chat_history = mock_chat_history
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.get(
             "/api/chat/history/empty-session",
             headers=headers
@@ -315,7 +301,7 @@ class TestGetChatHistory:
         mock_db.chat_history = mock_chat_history
         
         # User tries to access another user's session
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.get(
             "/api/chat/history/other-user-session",
             headers=headers
@@ -353,7 +339,7 @@ class TestGetChatSessions:
         mock_chat_history.aggregate.return_value = mock_aggregate
         mock_db.chat_history = mock_chat_history
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.get("/api/chat/sessions", headers=headers)
         
         assert response.status_code == 200
@@ -374,7 +360,7 @@ class TestGetChatSessions:
         mock_chat_history.aggregate.return_value = mock_aggregate
         mock_db.chat_history = mock_chat_history
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.get("/api/chat/sessions", headers=headers)
         
         assert response.status_code == 200

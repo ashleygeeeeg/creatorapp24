@@ -1,12 +1,6 @@
 """Tests for system routes: health check."""
-import os
 from fastapi.testclient import TestClient
 from unittest.mock import patch
-
-# Set test environment
-os.environ['MONGO_URL'] = 'mongodb://localhost:27017'
-os.environ['DB_NAME'] = 'creatorapp24_test'
-os.environ['JWT_SECRET'] = 'test-secret-key-for-testing-only'
 
 from backend.server import app
 

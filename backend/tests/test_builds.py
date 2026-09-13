@@ -1,26 +1,13 @@
 """Tests for build endpoints."""
-import os
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timezone
 import uuid
 
-# Set test environment
-os.environ['MONGO_URL'] = 'mongodb://localhost:27017'
-os.environ['DB_NAME'] = 'creatorapp24_test'
-os.environ['JWT_SECRET'] = 'test-secret-key-for-testing-only'
-os.environ['JWT_EXPIRY_HOURS'] = '24'
-
 from backend.server import app, create_token, hash_password
 
 client = TestClient(app)
-
-
-def get_auth_headers(user_id: str, email: str) -> dict:
-    """Helper to get authorization headers with a valid token."""
-    token = create_token(user_id, email)
-    return {"Authorization": f"Bearer {token}"}
 
 
 class TestCreateBuild:
@@ -47,7 +34,7 @@ class TestCreateBuild:
         with patch('backend.server.uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = uuid.UUID('12345678-1234-5678-1234-567812345678')
             
-            headers = get_auth_headers("test-user-id", "test@example.com")
+            headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
             response = client.post(
                 "/api/builds",
                 json={"name": "Test Build", "description": "A test build"},
@@ -84,7 +71,7 @@ class TestCreateBuild:
         with patch('backend.server.uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = uuid.UUID('12345678-1234-5678-1234-567812345678')
             
-            headers = get_auth_headers("test-user-id", "test@example.com")
+            headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
             response = client.post(
                 "/api/builds",
                 json={"name": "Paid Build"},
@@ -110,7 +97,7 @@ class TestCreateBuild:
     @patch('backend.server.db')
     def test_create_build_missing_name(self, mock_db):
         """Test creating build with missing name."""
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds",
             json={"description": "A test build"},
@@ -139,7 +126,7 @@ class TestCreateBuild:
         with patch('backend.server.uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = uuid.UUID('12345678-1234-5678-1234-567812345678')
             
-            headers = get_auth_headers("test-user-id", "test@example.com")
+            headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
             response = client.post(
                 "/api/builds",
                 json={"name": "Test Build", "description": ""},
@@ -185,7 +172,7 @@ class TestGetBuilds:
         ]
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.get("/api/builds", headers=headers)
         
         assert response.status_code == 200
@@ -202,7 +189,7 @@ class TestGetBuilds:
         mock_builds.find.return_value.sort.return_value.to_list.return_value = []
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.get("/api/builds", headers=headers)
         
         assert response.status_code == 200
@@ -241,7 +228,7 @@ class TestEditBuild:
         }
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.put(
             "/api/builds/build-1",
             json={"name": "Updated Name", "description": "Updated description"},
@@ -260,7 +247,7 @@ class TestEditBuild:
         mock_builds.find_one.return_value = None
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.put(
             "/api/builds/nonexistent",
             json={"name": "Updated Name"},
@@ -281,7 +268,7 @@ class TestEditBuild:
         }
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.put(
             "/api/builds/build-1",
             json={"name": "Updated Name"},
@@ -309,7 +296,7 @@ class TestEditBuild:
         }
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.put(
             "/api/builds/build-1",
             json={"name": "Updated Name"},  # Only update name
@@ -350,7 +337,7 @@ class TestDeployBuild:
         mock_builds.update_one.return_value = None
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds/build-1/deploy",
             headers=headers
@@ -376,7 +363,7 @@ class TestDeployBuild:
         mock_builds.update_one.return_value = None
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds/build-1/deploy",
             headers=headers
@@ -400,7 +387,7 @@ class TestDeployBuild:
         }
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds/build-1/deploy",
             headers=headers
@@ -416,7 +403,7 @@ class TestDeployBuild:
         mock_builds.find_one.return_value = None
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds/nonexistent/deploy",
             headers=headers
@@ -456,7 +443,7 @@ class TestPayForBuild:
         with patch('backend.server.uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = uuid.UUID('payment-123')
             
-            headers = get_auth_headers("test-user-id", "test@example.com")
+            headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
             response = client.post(
                 "/api/builds/build-1/pay",
                 headers=headers
@@ -480,7 +467,7 @@ class TestPayForBuild:
         }
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds/build-1/pay",
             headers=headers
@@ -504,7 +491,7 @@ class TestPayForBuild:
         }
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds/build-1/pay",
             headers=headers
@@ -521,7 +508,7 @@ class TestPayForBuild:
         mock_builds.find_one.return_value = None
         mock_db.builds = mock_builds
         
-        headers = get_auth_headers("test-user-id", "test@example.com")
+        headers = {"Authorization": f"Bearer {create_token("test-user-id", "test@example.com")}"}
         response = client.post(
             "/api/builds/nonexistent/pay",
             headers=headers
